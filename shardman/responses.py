@@ -16,9 +16,6 @@ class ShardProjection(BaseModel):
     last_beat: datetime
     guild_count: int | None = None
     latency: float | None = None
-
-
-class ShardProjectionExtra(ShardProjection):
     extra: Any | None = None
 
 

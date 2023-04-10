@@ -10,7 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from shardman.config import load_config
 from shardman.models import Shard, all_models
 from shardman.requests import Heartbeat
-from shardman.responses import ConnectConfirmed, Status, ShardProjection, ShardProjectionExtra
+from shardman.responses import ConnectConfirmed, Status, ShardProjection
 
 api = FastAPI(title="Shardman")
 
@@ -151,7 +151,7 @@ async def beat(heartbeat: Heartbeat) -> None:
     },
     dependencies=[Depends(requires_authorization)],
 )
-async def beat(token: str, session_id: str) -> None:
+async def beat(session_id: str) -> None:
     shard = await Shard.find_one(Shard.session_id == session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
@@ -159,15 +159,14 @@ async def beat(token: str, session_id: str) -> None:
     await shard.delete()
 
 
+import logging
+
+
 @api.get(
     "/status",
     status_code=200,
-    responses={
-        200: {"model": Status},
-    },
 )
 async def status(extra: bool = False) -> Status:
-    projection = ShardProjectionExtra if extra else ShardProjection
-    shards = await Shard.find_all().project(projection).to_list()
+    shards = await Shard.find_all().project(ShardProjection).to_list()
 
     return Status(total_shards=total_shards, shards=shards)
