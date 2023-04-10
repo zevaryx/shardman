@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import ulid
 from aiohttp import ClientSession
 from beanie import init_beanie
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Header
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from shardman.config import load_config
@@ -41,7 +41,9 @@ async def startup():
     loop = asyncio.get_event_loop()
     loop.create_task(check_sessions())
 
-    async with ClientSession(headers={"Authorization": f"Bot {config.token}"}) as session:
+    async with ClientSession(
+        headers={"Authorization": f"Bot {config.token}"}
+    ) as session:
         resp = await session.get("https://discord.com/api/v10/gateway/bot")
         data = await resp.json()
         total_shards = config.max_shards or data.get("shards")
@@ -62,6 +64,14 @@ async def get_shard_id() -> int | None:
     return missing_shards[0]
 
 
+async def requires_authorization(
+    authorization: str = Header(description="Authorization Token"),
+):
+    config = load_config()
+    if authorization != config.secret:
+        raise HTTPException(status_code=403, detail="Invalid Token")
+
+
 @api.get(
     "/connect",
     responses={
@@ -69,13 +79,12 @@ async def get_shard_id() -> int | None:
         401: {"description": "No Shards Available"},
         403: {"description": "Invalid Token"},
     },
+    dependencies=[Depends(requires_authorization)],
 )
-async def connect(token: str):
+async def connect():
     global left_before_halt, next_halt_time
-    config = load_config()
-    if token != config.secret:
-        raise HTTPException(status_code=403, detail="Invalid Token")
-    elif await Shard.count() >= total_shards:
+
+    if await Shard.count() >= total_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
     async with shard_lock:
@@ -96,10 +105,15 @@ async def connect(token: str):
 
         left_before_halt -= 1
 
-        await Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat).insert()
+        await Shard(
+            shard_id=shard_id, session_id=session_id, last_beat=last_beat
+        ).insert()
 
         return ConnectConfirmed(
-            shard_id=shard_id, max_shards=total_shards, session_id=session_id, sleep_duration=sleep_duration
+            shard_id=shard_id,
+            max_shards=total_shards,
+            session_id=session_id,
+            sleep_duration=sleep_duration,
         )
 
 
@@ -111,19 +125,19 @@ async def connect(token: str):
         403: {"description": "Invalid Token"},
         404: {"description": "Session Not Found"},
     },
+    dependencies=[Depends(requires_authorization)],
 )
-async def beat(token: str, session_id: str):
+async def beat(session_id: str, guild_count: int = None, latency: float = None):
     config = load_config()
-    if token != config.secret:
-        raise HTTPException(status_code=403, detail="Invalid Token")
-
     shard = await Shard.find_one(Shard.session_id == session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
-    elif shard.shard_id >= config.max_shards:
+    elif shard.shard_id >= total_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
     shard.last_beat = datetime.now(tz=timezone.utc)
+    shard.guild_count = guild_count
+    shard.latency = latency
     await shard.save()
 
 
@@ -134,12 +148,9 @@ async def beat(token: str, session_id: str):
         403: {"description": "Invalid Token"},
         404: {"description": "Session Not Found"},
     },
+    dependencies=[Depends(requires_authorization)],
 )
 async def beat(token: str, session_id: str):
-    config = load_config()
-    if token != config.secret:
-        raise HTTPException(status_code=403, detail="Invalid Token")
-
     shard = await Shard.find_one(Shard.session_id == session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
