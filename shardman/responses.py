@@ -13,6 +13,5 @@ class ConnectConfirmed(BaseModel):
 class ShardResponse(BaseModel):
     shard_id: int
     last_beat: datetime
-    session_id: str
     guild_count: int | None = None
     latency: float | None = None

@@ -161,7 +161,6 @@ async def beat(token: str, session_id: str):
         200: {"model": list[ShardResponse]},
         403: {"description": "Invalid Token"},
     },
-    dependencies=[Depends(requires_authorization)],
 )
 async def shards():
     shards = await Shard.find_all().project(ShardResponse).to_list()
