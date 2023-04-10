@@ -1,20 +1,8 @@
----
-title: Shardman v0.1.0
-language_tabs:
-  - python: Python
-language_clients:
-  - python: ""
-toc_footers: []
-includes: []
-search: true
-highlight_theme: darkula
-headingLevel: 2
-
----
-
 <!-- Generator: Widdershins v4.0.1 -->
 
-<h1 id="shardman">Shardman v0.1.0</h1>
+<h1 id="shardman">Shardman</h1>
+
+A Discord shard manager to help with autoscaling shards based on load
 
 > Scroll down for code samples, example requests and responses. Select a language for code samples from the tabs above or the mobile navigation menu.
 
@@ -240,4 +228,3 @@ continued
 |---|---|---|---|---|
 |msg|string|true|none|none|
 |type|string|true|none|none|
-
