@@ -127,15 +127,17 @@ async def connect():
     },
     dependencies=[Depends(requires_authorization)],
 )
-async def beat(token: str, session_id: str):
+async def beat(session_id: str, guild_count: int = None, latency: float = None):
     config = load_config()
     shard = await Shard.find_one(Shard.session_id == session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
-    elif shard.shard_id >= config.max_shards:
+    elif shard.shard_id >= total_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
     shard.last_beat = datetime.now(tz=timezone.utc)
+    shard.guild_count = guild_count
+    shard.latency = latency
     await shard.save()
 
 
