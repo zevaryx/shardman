@@ -9,6 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from shardman.config import load_config
 from shardman.models import Shard, all_models
+from shardman.requests import Heartbeat
 from shardman.responses import ConnectConfirmed, Status, ShardProjection
 
 api = FastAPI(title="Shardman")
@@ -79,7 +80,7 @@ async def requires_authorization(
     },
     dependencies=[Depends(requires_authorization)],
 )
-async def connect():
+async def connect() -> ConnectConfirmed:
     global left_before_halt, next_halt_time
 
     if await Shard.count() >= total_shards:
@@ -113,7 +114,7 @@ async def connect():
         )
 
 
-@api.get(
+@api.post(
     "/beat",
     status_code=204,
     responses={
@@ -123,17 +124,17 @@ async def connect():
     },
     dependencies=[Depends(requires_authorization)],
 )
-async def beat(session_id: str, guild_count: int = None, latency: float = None):
-    config = load_config()
-    shard = await Shard.find_one(Shard.session_id == session_id)
+async def beat(heartbeat: Heartbeat) -> None:
+    shard = await Shard.find_one(Shard.session_id == heartbeat.session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
     elif shard.shard_id >= total_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
     shard.last_beat = datetime.now(tz=timezone.utc)
-    shard.guild_count = guild_count
-    shard.latency = latency
+    shard.guild_count = heartbeat.guild_count
+    shard.latency = heartbeat.latency
+    shard.extra = heartbeat.extra
     await shard.save()
 
 
@@ -146,7 +147,7 @@ async def beat(session_id: str, guild_count: int = None, latency: float = None):
     },
     dependencies=[Depends(requires_authorization)],
 )
-async def beat(token: str, session_id: str):
+async def beat(token: str, session_id: str) -> None:
     shard = await Shard.find_one(Shard.session_id == session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
@@ -161,7 +162,7 @@ async def beat(token: str, session_id: str):
         200: {"model": Status},
     },
 )
-async def status():
+async def status() -> Status:
     shards = await Shard.find_all().project(ShardProjection).to_list()
 
     return Status(total_shards=total_shards, shards=shards)

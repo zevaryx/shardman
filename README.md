@@ -52,7 +52,7 @@ print(r.json())
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Invalid Token|None|
 |422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Validation Error|HTTPValidationError|
 
-## `GET /beat`
+## `POST /beat`
 
 ```python
 import requests
@@ -61,7 +61,7 @@ headers = {
   'Authorization': 'SECRET',
 }
 
-r = requests.get('/beat', params={
+r = requests.post('/beat', data={
   'session_id': 'string'
 }, headers = headers)
 
@@ -73,9 +73,10 @@ print(r.json())
 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
-|session_id|query|string|true|Session ID provided by `/connect`|
-|guild_count|query|int|false|Number of guilds the shard sees|
-|latency|query|float|false|Current shard latency|
+|session_id|data|string|true|Session ID provided by `/connect`|
+|guild_count|data|int|false|Number of guilds the shard sees|
+|latency|data|float|false|Current shard latency|
+|extra|data|Any|false|Extra data to store for shard|
 
 > Example responses
 

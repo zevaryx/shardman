@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from beanie import Document
 
@@ -13,6 +14,10 @@ class Shard(Document):
     guild_count: int | None = None
     latency: float | None = None
     """The latency of the Shard's gateway connection."""
+    extra: Any | None = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 all_models = [Shard]
