@@ -12,6 +12,7 @@ fastapi = "^0.95.0"
 python-dotenv = "^1.0.0"
 ulid-py = "^1.1.0"
 uvicorn = "^0.21.1"
+aiohttp = "^3.8.4"
 
 
 [tool.poetry.group.dev.dependencies]

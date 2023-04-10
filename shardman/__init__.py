@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 import ulid
+from aiohttp import ClientSession
 from beanie import init_beanie
 from fastapi import FastAPI, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -13,6 +14,11 @@ from shardman.responses import ConnectConfirmed
 api = FastAPI(title="Shardman")
 
 shard_lock = asyncio.Lock()
+max_concurrency = 1
+total_shards = 1
+
+next_halt_time: datetime = None
+left_before_halt = 5
 
 
 async def check_sessions():
@@ -27,6 +33,7 @@ async def check_sessions():
 
 @api.on_event("startup")
 async def startup():
+    global max_concurrency, total_shards
     config = load_config()
     client = AsyncIOMotorClient(config.mongodb, tz_aware=True, tzinfo=timezone.utc)
     await init_beanie(database=client[config.database], document_models=all_models)
@@ -34,16 +41,20 @@ async def startup():
     loop = asyncio.get_event_loop()
     loop.create_task(check_sessions())
 
+    async with ClientSession(headers={"Authorization": f"Bot {config.token}"}) as session:
+        resp = await session.get("https://discord.com/api/v10/gateway/bot")
+        data = await resp.json()
+        total_shards = config.max_shards or data.get("shards")
+        max_concurrency = data.get("session_start_limit").get("max_concurrency")
+
 
 async def get_shard_id() -> int | None:
-    config = load_config()
-
     shards = await Shard.find().to_list()
     if len(shards) == 0:
         return 0
 
     shard_ids = [x.shard_id for x in shards]
-    missing_shards = sorted(set(range(0, config.max_shards)).difference(shard_ids))
+    missing_shards = sorted(set(range(0, total_shards)).difference(shard_ids))
 
     if len(missing_shards) == 0:
         return
@@ -60,10 +71,11 @@ async def get_shard_id() -> int | None:
     },
 )
 async def connect(token: str):
+    global left_before_halt, next_halt_time
     config = load_config()
     if token != config.secret:
         raise HTTPException(status_code=403, detail="Invalid Token")
-    elif await Shard.count() >= config.max_shards:
+    elif await Shard.count() >= total_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
     async with shard_lock:
@@ -72,9 +84,23 @@ async def connect(token: str):
         session_id = ulid.new().str
         last_beat = datetime.now(tz=timezone.utc)
 
+        sleep_duration = 0.0
+
+        if not next_halt_time or next_halt_time < last_beat:
+            next_halt_time = last_beat + timedelta(seconds=5)
+            left_before_halt = 5
+        if left_before_halt <= 0:
+            left_before_halt = 5
+            sleep_duration = 5.0
+            last_beat = last_beat + timedelta(seconds=5)
+
+        left_before_halt -= 1
+
         await Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat).insert()
 
-        return ConnectConfirmed(shard=shard_id, max_shards=config.max_shards, session_id=session_id)
+        return ConnectConfirmed(
+            shard=shard_id, max_shards=total_shards, session_id=session_id, sleep_duration=sleep_duration
+        )
 
 
 @api.get(
