@@ -22,6 +22,7 @@ async def check_sessions():
         async for shard in Shard.find(Shard.valid_session == True):
             if shard.last_beat + td <= datetime.now(tz=timezone.utc):
                 shard.valid_session = False
+                await shard.save()
         await asyncio.sleep(10)
 
 
