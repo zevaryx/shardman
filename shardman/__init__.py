@@ -19,10 +19,9 @@ async def check_sessions():
     config = load_config()
     td = timedelta(seconds=config.max_seconds)
     while True:
-        async for shard in Shard.find(Shard.valid_session == True):
+        async for shard in Shard.find():
             if shard.last_beat + td <= datetime.now(tz=timezone.utc):
-                shard.valid_session = False
-                await shard.save()
+                await shard.delete()
         await asyncio.sleep(10)
 
 
@@ -92,7 +91,7 @@ async def beat(token: str, session_id: str):
     if token != config.secret:
         raise HTTPException(status_code=403, detail="Invalid Token")
 
-    shard = await Shard.find_one(Shard.session_id == session_id, Shard.valid_session == True)
+    shard = await Shard.find_one(Shard.session_id == session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
     elif shard.shard_id >= config.max_shards:
@@ -100,3 +99,23 @@ async def beat(token: str, session_id: str):
 
     shard.last_beat = datetime.now(tz=timezone.utc)
     await shard.save()
+
+
+@api.get(
+    "/disconnect",
+    status_code=204,
+    responses={
+        403: {"description": "Invalid Token"},
+        404: {"description": "Session Not Found"},
+    },
+)
+async def beat(token: str, session_id: str):
+    config = load_config()
+    if token != config.secret:
+        raise HTTPException(status_code=403, detail="Invalid Token")
+
+    shard = await Shard.find_one(Shard.session_id == session_id)
+    if not shard:
+        raise HTTPException(status_code=404, detail="Session Not Found")
+
+    await shard.delete()
