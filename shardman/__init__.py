@@ -9,7 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from shardman.config import load_config
 from shardman.models import Shard, all_models
-from shardman.responses import ConnectConfirmed
+from shardman.responses import ConnectConfirmed, ShardResponse
 
 api = FastAPI(title="Shardman")
 
@@ -41,9 +41,7 @@ async def startup():
     loop = asyncio.get_event_loop()
     loop.create_task(check_sessions())
 
-    async with ClientSession(
-        headers={"Authorization": f"Bot {config.token}"}
-    ) as session:
+    async with ClientSession(headers={"Authorization": f"Bot {config.token}"}) as session:
         resp = await session.get("https://discord.com/api/v10/gateway/bot")
         data = await resp.json()
         total_shards = config.max_shards or data.get("shards")
@@ -105,9 +103,7 @@ async def connect():
 
         left_before_halt -= 1
 
-        await Shard(
-            shard_id=shard_id, session_id=session_id, last_beat=last_beat
-        ).insert()
+        await Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat).insert()
 
         return ConnectConfirmed(
             shard_id=shard_id,
@@ -156,3 +152,18 @@ async def beat(token: str, session_id: str):
         raise HTTPException(status_code=404, detail="Session Not Found")
 
     await shard.delete()
+
+
+@api.get(
+    "/shards",
+    status_code=200,
+    responses={
+        200: {"model": list[ShardResponse]},
+        403: {"description": "Invalid Token"},
+    },
+    dependencies=[Depends(requires_authorization)],
+)
+async def shards():
+    shards = await Shard.find_all().project(ShardResponse).to_list()
+
+    return shards
