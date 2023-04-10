@@ -91,7 +91,7 @@ async def beat(token: str, session_id: str):
     if token != config.secret:
         raise HTTPException(status_code=403, detail="Invalid Token")
 
-    shard = await Shard.find_one(Shard.session_id == session_id, valid=True)
+    shard = await Shard.find_one(Shard.session_id == session_id, Shard.valid_session == True)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
     elif shard.shard_id >= config.max_shards:
