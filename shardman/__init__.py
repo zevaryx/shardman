@@ -25,6 +25,10 @@ left_before_halt = 5
 async def check_sessions():
     config = load_config()
     td = timedelta(seconds=config.max_seconds)
+
+    # In case of restart, wait MAX_SECONDS before starting task
+    await asyncio.sleep(config.max_seconds)
+
     while True:
         async for shard in Shard.find():
             if shard.last_beat + td <= datetime.now(tz=timezone.utc):
