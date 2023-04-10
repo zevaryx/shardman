@@ -1,42 +1,35 @@
 <!-- Generator: Widdershins v4.0.1 -->
 
-<h1 id="shardman">Shardman</h1>
+# Shardman
 
 A Discord shard manager to help with autoscaling shards based on load
 
-> Scroll down for code samples, example requests and responses. Select a language for code samples from the tabs above or the mobile navigation menu.
+## How to use
 
-<h1 id="shardman-default">Default</h1>
+On bot startup, make a request to `/connect` with the header `Authorization: <secret>`, where `<secret>` is the same as `SECRET` in your .env
 
-## connect_connect_get
+Once you have connected with your shard, you'll need to make sure you make a request to `/beat` every few seconds, less than `MAX_SECONDS` specified in your .env
 
-<a id="opIdconnect_connect_get"></a>
+This will keep the shard alive and maintained in the manager, so new shards don't try to connect in its place.
 
-> Code samples
+## API documentation
+
+**Note: all endpoints require the `Authorization: <secret>` header**
+
+### `GET /connect`
 
 ```python
 import requests
 headers = {
-  'Accept': 'application/json'
+  'Accept': 'application/json',
+  'Authorization': 'SECRET',
 }
 
-r = requests.get('/connect', params={
-  'token': 'string'
-}, headers = headers)
+r = requests.get('/connect', headers = headers)
 
 print(r.json())
 
 ```
-
-`GET /connect`
-
-*Connect*
-
-<h3 id="connect_connect_get-parameters">Parameters</h3>
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|token|query|string|true|none|
 
 > Example responses
 
@@ -44,55 +37,45 @@ print(r.json())
 
 ```json
 {
-  "shard": 0,
+  "shard_id": 0,
   "max_shards": 0,
   "session_id": "string"
 }
 ```
 
-<h3 id="connect_connect_get-responses">Responses</h3>
+### Responses
 
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Successful Response|[ConnectConfirmed](#schemaconnectconfirmed)|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Successful Response|ConnectConfirmed|
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|No Shards Available|None|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Invalid Token|None|
-|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Validation Error|[HTTPValidationError](#schemahttpvalidationerror)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Validation Error|HTTPValidationError|
 
-<aside class="success">
-This operation does not require authentication
-</aside>
-
-## beat_beat_get
-
-<a id="opIdbeat_beat_get"></a>
-
-> Code samples
+## `GET /beat`
 
 ```python
 import requests
 headers = {
-  'Accept': 'application/json'
+  'Accept': 'application/json',
+  'Authorization': 'SECRET',
 }
 
 r = requests.get('/beat', params={
-  'token': 'string',  'session_id': 'string'
+  'session_id': 'string'
 }, headers = headers)
 
 print(r.json())
 
 ```
 
-`GET /beat`
-
-*Beat*
-
-<h3 id="beat_beat_get-parameters">Parameters</h3>
+### Parameters
 
 |Name|In|Type|Required|Description|
 |---|---|---|---|---|
-|token|query|string|true|none|
-|session_id|query|string|true|none|
+|session_id|query|string|true|Session ID provided by `/connect`|
+|guild_count|query|int|false|Number of guilds the shard sees|
+|latency|query|float|false|Current shard latency|
 
 > Example responses
 
@@ -112,7 +95,7 @@ print(r.json())
 }
 ```
 
-<h3 id="beat_beat_get-responses">Responses</h3>
+### Responses
 
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
@@ -120,24 +103,15 @@ print(r.json())
 |401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|No Shards Available|None|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Invalid Token|None|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Session Not Found|None|
-|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Validation Error|[HTTPValidationError](#schemahttpvalidationerror)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Validation Error|HTTPValidationError|
 
-<aside class="success">
-This operation does not require authentication
-</aside>
+## Schemas
 
-# Schemas
-
-<h2 id="tocS_ConnectConfirmed">ConnectConfirmed</h2>
-<!-- backwards compatibility -->
-<a id="schemaconnectconfirmed"></a>
-<a id="schema_ConnectConfirmed"></a>
-<a id="tocSconnectconfirmed"></a>
-<a id="tocsconnectconfirmed"></a>
+### ConnectConfirmed
 
 ```json
 {
-  "shard": 0,
+  "shard_id": 0,
   "max_shards": 0,
   "session_id": "string"
 }
@@ -150,16 +124,11 @@ ConnectConfirmed
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|shard|integer|true|none|none|
-|max_shards|integer|true|none|none|
-|session_id|string|true|none|none|
+|shard_id|integer|true|none|Shard ID to connect with|
+|max_shards|integer|true|none|Max number of shards|
+|session_id|string|true|none|Session ID for `/beat`|
 
-<h2 id="tocS_HTTPValidationError">HTTPValidationError</h2>
-<!-- backwards compatibility -->
-<a id="schemahttpvalidationerror"></a>
-<a id="schema_HTTPValidationError"></a>
-<a id="tocShttpvalidationerror"></a>
-<a id="tocshttpvalidationerror"></a>
+### HTTPValidationError
 
 ```json
 {
@@ -182,14 +151,7 @@ HTTPValidationError
 
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
-|detail|[[ValidationError](#schemavalidationerror)]|false|none|none|
-
-<h2 id="tocS_ValidationError">ValidationError</h2>
-<!-- backwards compatibility -->
-<a id="schemavalidationerror"></a>
-<a id="schema_ValidationError"></a>
-<a id="tocSvalidationerror"></a>
-<a id="tocsvalidationerror"></a>
+|detail|ValidationError|false|none|none
 
 ```json
 {
