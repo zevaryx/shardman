@@ -2,7 +2,7 @@ from os import environ
 from typing import Optional
 
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 __all__ = ["Config", "load_config"]
 
@@ -13,7 +13,7 @@ class Config(BaseModel):
     secret: str
     token: str
     max_seconds: int
-    max_shards: Optional[int] = None
+    max_shards: Optional[int] = Field(default=None)
 
 
 _config: Config = None
@@ -29,7 +29,7 @@ def load_config() -> Config:
         secret = environ.get("SECRET_KEY")
         token = environ.get("BOT_TOKEN")
         max_seconds = int(environ.get("MAX_SECONDS", 60))
-        max_shards = environ.get("MAX_SHARDS")
+        max_shards = environ.get("MAX_SHARDS", None)
         if max_shards:
             max_shards = int(max_shards)
 
