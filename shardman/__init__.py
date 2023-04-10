@@ -55,7 +55,7 @@ async def get_shard_id() -> int | None:
     "/connect",
     responses={
         200: {"model": ConnectConfirmed},
-        401: {"description": "Too Many Shards"},
+        401: {"description": "No Shards Available"},
         403: {"description": "Invalid Token"},
     },
 )
@@ -64,7 +64,7 @@ async def connect(token: str):
     if token != config.secret:
         raise HTTPException(status_code=403, detail="Invalid Token")
     elif await Shard.find_all(Shard.valid_session == True).count() >= config.max_shards:
-        raise HTTPException(status_code=401, detail="Too Many Shards")
+        raise HTTPException(status_code=401, detail="No Shards Available")
 
     async with shard_lock:
         shard_id = await get_shard_id()
@@ -81,7 +81,7 @@ async def connect(token: str):
     "/beat",
     status_code=204,
     responses={
-        401: {"description": "Too Many Shards"},
+        401: {"description": "No Shards Available"},
         403: {"description": "Invalid Token"},
         404: {"description": "Session Not Found"},
     },
@@ -95,7 +95,7 @@ async def beat(token: str, session_id: str):
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
     elif shard.shard_id >= config.max_shards:
-        raise HTTPException(status_code=401, detail="Too Many Shards")
+        raise HTTPException(status_code=401, detail="No Shards Available")
 
     shard.last_beat = datetime.now(tz=timezone.utc)
     await shard.save()

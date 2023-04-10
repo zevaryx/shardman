@@ -55,7 +55,7 @@ print(r.json())
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Successful Response|[ConnectConfirmed](#schemaconnectconfirmed)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Too Many Shards|None|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|No Shards Available|None|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Invalid Token|None|
 |422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Validation Error|[HTTPValidationError](#schemahttpvalidationerror)|
 
@@ -117,7 +117,7 @@ print(r.json())
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|Successful Response|None|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Too Many Shards|None|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|No Shards Available|None|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Invalid Token|None|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Session Not Found|None|
 |422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Validation Error|[HTTPValidationError](#schemahttpvalidationerror)|
