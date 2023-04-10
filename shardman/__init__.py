@@ -10,7 +10,7 @@ from shardman.config import load_config
 from shardman.models import Shard, all_models
 from shardman.responses import ConnectConfirmed
 
-api = FastAPI()
+api = FastAPI(title="Shardman")
 
 shard_lock = asyncio.Lock()
 
