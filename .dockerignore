@@ -1,0 +1,7 @@
+*
+
+!Dockerfile
+!shardman/
+!poetry.lock
+!pyproject.toml
+!server
