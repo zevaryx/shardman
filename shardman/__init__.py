@@ -63,7 +63,7 @@ async def connect(token: str):
     config = load_config()
     if token != config.secret:
         raise HTTPException(status_code=403, detail="Invalid Token")
-    elif await Shard.find_all(Shard.valid_session == True).count() >= config.max_shards:
+    elif await Shard.count() >= config.max_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
     async with shard_lock:
