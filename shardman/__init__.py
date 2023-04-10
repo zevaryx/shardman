@@ -9,7 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from shardman.config import load_config
 from shardman.models import Shard, all_models
-from shardman.responses import ConnectConfirmed, ShardResponse
+from shardman.responses import ConnectConfirmed, Status, ShardProjection
 
 api = FastAPI(title="Shardman")
 
@@ -155,14 +155,14 @@ async def beat(token: str, session_id: str):
 
 
 @api.get(
-    "/shards",
+    "/status",
     status_code=200,
     responses={
-        200: {"model": list[ShardResponse]},
+        200: {"model": Status},
         403: {"description": "Invalid Token"},
     },
 )
-async def shards():
-    shards = await Shard.find_all().project(ShardResponse).to_list()
+async def status():
+    shards = await Shard.find_all().project(ShardProjection).to_list()
 
-    return shards
+    return Status(total_shards=total_shards, shards=shards)

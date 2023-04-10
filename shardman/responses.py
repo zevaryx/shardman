@@ -10,8 +10,13 @@ class ConnectConfirmed(BaseModel):
     sleep_duration: float = 0.0
 
 
-class ShardResponse(BaseModel):
+class ShardProjection(BaseModel):
     shard_id: int
     last_beat: datetime
     guild_count: int | None = None
     latency: float | None = None
+
+
+class Status(BaseModel):
+    total_shards: int
+    shards: list[ShardProjection]
