@@ -1,4 +1,6 @@
 import asyncio
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import ulid
@@ -102,6 +104,47 @@ async def connect(token: str):
             shard=shard_id, max_shards=total_shards, session_id=session_id, sleep_duration=sleep_duration
         )
 
+@api.get(
+    "/connect_all",
+    status_code=201,
+    responses={
+        403: {"description": "Invalid Token"},
+    },
+)
+async def connect_all(token: str):
+    """Connects all shards at once, respecting the max concurrency limit."""
+    config = load_config()
+    if token != config.secret:
+        raise HTTPException(status_code=403, detail="Invalid Token")
+
+    shard_buckets = defaultdict(list)
+    for shard_id in range(total_shards):
+        bucket = str(shard_id % max_concurrency)
+        shard_buckets[bucket].append(shard_id)
+
+    tasks = []
+
+    async def connect_shard(shard_id: int):
+        async with shard_lock:
+            session_id = ulid.new().str
+            last_beat = datetime.now(tz=timezone.utc)
+
+            shard = Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat)
+            await shard.insert()
+            return shard
+
+    for bucket in shard_buckets.values():
+        for shard_id in bucket:
+            start = time.monotonic()
+            tasks.append(asyncio.create_task(connect_shard(shard_id)))
+
+            if max_concurrency == 1:
+                # todo: when you can determine when a shard has actually connected, use that for the sleep duration instead of this
+
+                await asyncio.sleep(5.1 - (time.monotonic() - start))
+
+    shards = await asyncio.gather(*tasks)
+    return {"detail": "All shards connected", "shards": [ConnectConfirmed(shard=x.shard_id, max_shards=total_shards, session_id=x.session_id, sleep_duration=0.0) for x in shards]}
 
 @api.get(
     "/beat",
