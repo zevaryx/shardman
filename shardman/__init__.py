@@ -29,7 +29,7 @@ async def check_sessions():
 @api.on_event("startup")
 async def startup():
     config = load_config()
-    client = AsyncIOMotorClient(config.mongodb)
+    client = AsyncIOMotorClient(config.mongodb, tz_aware=True, tzinfo=timezone.utc)
     await init_beanie(database=client[config.database], document_models=all_models)
 
     loop = asyncio.get_event_loop()
