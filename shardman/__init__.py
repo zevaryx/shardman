@@ -69,12 +69,12 @@ async def connect(token: str):
     async with shard_lock:
         shard_id = await get_shard_id()
 
-    session_id = ulid.new().str
-    last_beat = datetime.now(tz=timezone.utc)
+        session_id = ulid.new().str
+        last_beat = datetime.now(tz=timezone.utc)
 
-    await Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat).insert()
+        await Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat).insert()
 
-    return ConnectConfirmed(shard=shard_id, max_shards=config.max_shards, session_id=session_id)
+        return ConnectConfirmed(shard=shard_id, max_shards=config.max_shards, session_id=session_id)
 
 
 @api.get(
