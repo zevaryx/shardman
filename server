@@ -1,0 +1,19 @@
+#!/usr/bin/env python
+import argparse
+from pathlib import Path
+
+import uvicorn
+from uvicorn.config import LOGGING_CONFIG
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(prog="server")
+    parser.add_argument("-r", "--reload", help="Automatically reload when changes are made", action="store_true")
+    parser.add_argument("-p", "--port", help="Port to run server on", type=int, default=5000)
+
+    args = parser.parse_args()
+    uvicorn.run(
+        "shardman:api",
+        host="0.0.0.0",
+        port=args.port,
+        reload=args.reload,
+    )

@@ -79,8 +79,8 @@ async def connect(token: str):
 
 @api.get(
     "/beat",
+    status_code=204,
     responses={
-        204: None,
         401: {"description": "Too Many Shards"},
         403: {"description": "Invalid Token"},
         404: {"description": "Session Not Found"},

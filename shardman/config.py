@@ -15,7 +15,6 @@ class Config(BaseModel):
 
 
 _config: Config = None
-Config.mongodb
 
 
 def load_config() -> Config:
