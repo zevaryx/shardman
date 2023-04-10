@@ -2,18 +2,24 @@ from os import environ
 from typing import Optional
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 __all__ = ["Config", "load_config"]
 
 
 class Config(BaseModel):
     mongodb: str
-    database: str
+    database: str = "shardman"
     secret: str
     token: str
-    max_seconds: int
-    max_shards: Optional[int] = Field(default=None)
+    max_seconds: int = 60
+    max_shards: Optional[int] = None
+
+    @validator("max_shards", pre=True)
+    def allow_none(cls, v):
+        if v == "":
+            return None
+        return v
 
 
 _config: Config = None
