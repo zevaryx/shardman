@@ -159,7 +159,6 @@ async def beat(token: str, session_id: str):
     status_code=200,
     responses={
         200: {"model": Status},
-        403: {"description": "Invalid Token"},
     },
 )
 async def status():
