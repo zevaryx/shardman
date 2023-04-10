@@ -99,7 +99,7 @@ async def connect(token: str):
         await Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat).insert()
 
         return ConnectConfirmed(
-            shard=shard_id, max_shards=total_shards, session_id=session_id, sleep_duration=sleep_duration
+            shard_id=shard_id, max_shards=total_shards, session_id=session_id, sleep_duration=sleep_duration
         )
 
 
