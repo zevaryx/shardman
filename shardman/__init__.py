@@ -14,6 +14,20 @@ from shardman.responses import ConnectConfirmed, Status, ShardProjection
 
 api = FastAPI(title="Shardman")
 
+config = load_config()
+
+if config.cors_origins:
+    from fastapi.middleware.cors import CORSMiddleware
+
+    api.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
 shard_lock = asyncio.Lock()
 max_concurrency = 1
 total_shards = 1
@@ -46,7 +60,9 @@ async def startup():
     loop = asyncio.get_event_loop()
     loop.create_task(check_sessions())
 
-    async with ClientSession(headers={"Authorization": f"Bot {config.token}"}) as session:
+    async with ClientSession(
+        headers={"Authorization": f"Bot {config.token}"}
+    ) as session:
         resp = await session.get("https://discord.com/api/v10/gateway/bot")
         data = await resp.json()
         total_shards = config.max_shards or data.get("shards")
@@ -108,7 +124,9 @@ async def connect() -> ConnectConfirmed:
 
         left_before_halt -= 1
 
-        await Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat).insert()
+        await Shard(
+            shard_id=shard_id, session_id=session_id, last_beat=last_beat
+        ).insert()
 
         return ConnectConfirmed(
             shard_id=shard_id,
@@ -157,9 +175,6 @@ async def beat(session_id: str) -> None:
         raise HTTPException(status_code=404, detail="Session Not Found")
 
     await shard.delete()
-
-
-import logging
 
 
 @api.get(
