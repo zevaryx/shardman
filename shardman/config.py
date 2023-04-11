@@ -14,8 +14,9 @@ class Config(BaseModel):
     token: str
     max_seconds: int = 60
     max_shards: Optional[int] = None
+    cors_origins: Optional[list[str]] = None
 
-    @validator("max_shards", pre=True)
+    @validator("max_shards", "cors_origins", pre=True)
     def allow_none(cls, v):
         if v == "":
             return None
@@ -36,8 +37,13 @@ def load_config() -> Config:
         token = environ.get("BOT_TOKEN")
         max_seconds = int(environ.get("MAX_SECONDS", 60))
         max_shards = environ.get("MAX_SHARDS", None)
+        cors_origins = environ.get("CORS_ORIGINS", None)
+
         if max_shards:
             max_shards = int(max_shards)
+
+        if cors_origins:
+            cors_origins = cors_origins.split(",")
 
         _config = Config(
             mongodb=mongodb,
@@ -46,6 +52,7 @@ def load_config() -> Config:
             token=token,
             max_seconds=max_seconds,
             max_shards=max_shards,
+            cors_origins=cors_origins,
         )
 
     return _config
