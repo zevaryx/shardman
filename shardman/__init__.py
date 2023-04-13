@@ -1,6 +1,7 @@
 import asyncio
 import json
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 
 import ulid
 from aiohttp import ClientSession
@@ -37,10 +38,16 @@ next_halt_time: datetime = None
 left_before_halt = 5
 
 
-async def send_alert(shard: Shard):
+class AlertType(Enum):
+    Connect = 65280
+    Disconnect = 16711680
+
+
+async def send_alert(shard: Shard, alert_type: AlertType):
     config = load_config()
     last_beat = int(shard.last_beat.timestamp())
     fields = [
+        {"name": "Status Type", "value": alert_type.name, "inline": True},
         {"name": "Shard ID", "value": str(shard.shard_id), "inline": True},
         {"name": "Last Heartbeat", "value": f"<t:{last_beat}:R>", "inline": True},
     ]
@@ -48,9 +55,9 @@ async def send_alert(shard: Shard):
         "content": config.webhook_content,
         "embeds": [
             {
-                "title": "WARNING",
-                "description": "A shard has disconnected!",
-                "color": 16711680,
+                "title": "NOTICE",
+                "description": "A shard has changed status!",
+                "color": alert_type.value,
                 "fields": fields,
             }
         ],
@@ -72,7 +79,7 @@ async def check_sessions():
     while True:
         async for shard in Shard.find():
             if shard.last_beat + td <= datetime.now(tz=timezone.utc):
-                await send_alert(shard)
+                await send_alert(shard, alert_type=AlertType.Disconnect)
                 await shard.delete()
         await asyncio.sleep(10)
 
@@ -87,9 +94,7 @@ async def startup():
     loop = asyncio.get_event_loop()
     loop.create_task(check_sessions())
 
-    async with ClientSession(
-        headers={"Authorization": f"Bot {config.token}"}
-    ) as session:
+    async with ClientSession(headers={"Authorization": f"Bot {config.token}"}) as session:
         resp = await session.get("https://discord.com/api/v10/gateway/bot")
         data = await resp.json()
         total_shards = config.max_shards or data.get("shards")
@@ -151,9 +156,10 @@ async def connect() -> ConnectConfirmed:
 
         left_before_halt -= 1
 
-        await Shard(
-            shard_id=shard_id, session_id=session_id, last_beat=last_beat
-        ).insert()
+        shard = Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat)
+        await shard.insert()
+
+        await send_alert(shard=shard, alert_type=AlertType.Connect)
 
         return ConnectConfirmed(
             shard_id=shard_id,
