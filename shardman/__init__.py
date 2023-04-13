@@ -45,6 +45,8 @@ class AlertType(Enum):
 
 async def send_alert(shard: Shard, alert_type: AlertType):
     config = load_config()
+    if not config.webhook_url:
+        return
     last_beat = int(shard.last_beat.timestamp())
     fields = [
         {"name": "Status Type", "value": alert_type.name, "inline": True},
