@@ -15,8 +15,10 @@ class Config(BaseModel):
     max_seconds: int = 60
     max_shards: Optional[int] = None
     cors_origins: Optional[list[str]] = None
+    webhook_url: Optional[str] = None
+    webhook_content: Optional[str] = None
 
-    @validator("max_shards", "cors_origins", pre=True)
+    @validator("max_shards", "cors_origins", "webhook_url", "webhook_content", pre=True)
     def allow_none(cls, v):
         if v == "":
             return None
@@ -39,6 +41,8 @@ def load_config() -> Config:
         max_shards = environ.get("MAX_SHARDS", None)
         cors_origins = environ.get("CORS_ORIGINS", None)
 
+        webhook_url = environ.get("WEBHOOK_URL", None)
+        webhook_content = environ.get("WEBHOOK_CONTENT", None)
         if max_shards:
             max_shards = int(max_shards)
 
@@ -53,6 +57,8 @@ def load_config() -> Config:
             max_seconds=max_seconds,
             max_shards=max_shards,
             cors_origins=cors_origins,
+            webhook_url=webhook_url,
+            webhook_content=webhook_content,
         )
 
     return _config

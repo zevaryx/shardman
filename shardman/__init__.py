@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 
 import ulid
@@ -36,6 +37,31 @@ next_halt_time: datetime = None
 left_before_halt = 5
 
 
+async def send_alert(shard: Shard):
+    config = load_config()
+    last_beat = int(shard.last_beat.timestamp())
+    fields = [
+        {"name": "Shard ID", "value": str(shard.shard_id), "inline": True},
+        {"name": "Last Heartbeat", "value": f"<t:{last_beat}:R>", "inline": True},
+    ]
+    embed = {
+        "content": config.webhook_content,
+        "embeds": [
+            {
+                "title": "WARNING",
+                "description": "A shard has disconnected!",
+                "color": 16711680,
+                "fields": fields,
+            }
+        ],
+        "username": "Shardman Alerts",
+    }
+    async with ClientSession() as session:
+        _resp = await session.post(
+            config.webhook_url, headers={"Content-Type": "application/json"}, data=json.dumps(embed)
+        )
+
+
 async def check_sessions():
     config = load_config()
     td = timedelta(seconds=config.max_seconds)
@@ -46,6 +72,7 @@ async def check_sessions():
     while True:
         async for shard in Shard.find():
             if shard.last_beat + td <= datetime.now(tz=timezone.utc):
+                await send_alert(shard)
                 await shard.delete()
         await asyncio.sleep(10)
 
