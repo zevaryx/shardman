@@ -43,6 +43,7 @@ def load_config() -> Config:
 
         webhook_url = environ.get("WEBHOOK_URL", None)
         webhook_content = environ.get("WEBHOOK_CONTENT", None)
+
         if max_shards:
             max_shards = int(max_shards)
 

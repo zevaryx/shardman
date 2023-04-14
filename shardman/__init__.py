@@ -13,6 +13,7 @@ from shardman.config import load_config
 from shardman.models import Shard, all_models
 from shardman.requests import Heartbeat
 from shardman.responses import ConnectConfirmed, Status, ShardProjection
+from shardman.state import AlertType, StateManager
 
 api = FastAPI(title="Shardman")
 
@@ -30,91 +31,23 @@ if config.cors_origins:
     )
 
 
-shard_lock = asyncio.Lock()
-max_concurrency = 1
-total_shards = 1
+state: StateManager = StateManager()
 
 next_halt_time: datetime = None
 left_before_halt = 5
 
 
-class AlertType(Enum):
-    Connect = 65280
-    Disconnect = 16711680
-
-
-async def send_alert(shard: Shard, alert_type: AlertType):
-    config = load_config()
-    if not config.webhook_url:
-        return
-    last_beat = int(shard.last_beat.timestamp())
-    fields = [
-        {"name": "Status Type", "value": alert_type.name, "inline": True},
-        {"name": "Shard ID", "value": str(shard.shard_id), "inline": True},
-        {"name": "Last Heartbeat", "value": f"<t:{last_beat}:R>", "inline": True},
-    ]
-    embed = {
-        "content": config.webhook_content,
-        "embeds": [
-            {
-                "title": "NOTICE",
-                "description": "A shard has changed status!",
-                "color": alert_type.value,
-                "fields": fields,
-            }
-        ],
-        "username": "Shardman Alerts",
-    }
-    async with ClientSession() as session:
-        _resp = await session.post(
-            config.webhook_url, headers={"Content-Type": "application/json"}, data=json.dumps(embed)
-        )
-
-
-async def check_sessions():
-    config = load_config()
-    td = timedelta(seconds=config.max_seconds)
-
-    # In case of restart, wait MAX_SECONDS before starting task
-    await asyncio.sleep(config.max_seconds)
-
-    while True:
-        async for shard in Shard.find():
-            if shard.last_beat + td <= datetime.now(tz=timezone.utc):
-                await send_alert(shard, alert_type=AlertType.Disconnect)
-                await shard.delete()
-        await asyncio.sleep(10)
-
-
 @api.on_event("startup")
 async def startup():
-    global max_concurrency, total_shards
+    global state
     config = load_config()
     client = AsyncIOMotorClient(config.mongodb, tz_aware=True, tzinfo=timezone.utc)
     await init_beanie(database=client[config.database], document_models=all_models)
 
+    await state.get_bot_info()
+
     loop = asyncio.get_event_loop()
-    loop.create_task(check_sessions())
-
-    async with ClientSession(headers={"Authorization": f"Bot {config.token}"}) as session:
-        resp = await session.get("https://discord.com/api/v10/gateway/bot")
-        data = await resp.json()
-        total_shards = config.max_shards or data.get("shards")
-        max_concurrency = data.get("session_start_limit").get("max_concurrency")
-
-
-async def get_shard_id() -> int | None:
-    shards = await Shard.find().to_list()
-    if len(shards) == 0:
-        return 0
-
-    shard_ids = [x.shard_id for x in shards]
-    missing_shards = sorted(set(range(0, total_shards)).difference(shard_ids))
-
-    if len(missing_shards) == 0:
-        return
-
-    return missing_shards[0]
+    loop.create_task(state.check_sessions())
 
 
 async def requires_authorization(
@@ -137,11 +70,11 @@ async def requires_authorization(
 async def connect() -> ConnectConfirmed:
     global left_before_halt, next_halt_time
 
-    if await Shard.count() >= total_shards:
+    if await Shard.count() >= state.total_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
-    async with shard_lock:
-        shard_id = await get_shard_id()
+    async with state.lock:
+        shard_id = await state.get_shard_id()
 
         session_id = ulid.new().str
         last_beat = datetime.now(tz=timezone.utc)
@@ -161,11 +94,11 @@ async def connect() -> ConnectConfirmed:
         shard = Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat)
         await shard.insert()
 
-        await send_alert(shard=shard, alert_type=AlertType.Connect)
+        await state.send_alert(shard=shard, alert_type=AlertType.Connect)
 
         return ConnectConfirmed(
             shard_id=shard_id,
-            max_shards=total_shards,
+            max_shards=state.total_shards,
             session_id=session_id,
             sleep_duration=sleep_duration,
         )
@@ -185,7 +118,7 @@ async def beat(heartbeat: Heartbeat) -> None:
     shard = await Shard.find_one(Shard.session_id == heartbeat.session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
-    elif shard.shard_id >= total_shards:
+    elif shard.shard_id >= state.total_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
     shard.last_beat = datetime.now(tz=timezone.utc)
@@ -219,4 +152,4 @@ async def beat(session_id: str) -> None:
 async def status(extra: bool = False) -> Status:
     shards = await Shard.find_all().project(ShardProjection).to_list()
 
-    return Status(total_shards=total_shards, shards=shards)
+    return Status(total_shards=state.total_shards, shards=shards)
