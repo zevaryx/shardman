@@ -67,7 +67,7 @@ async def connect() -> ConnectConfirmed:
 
     async with state.lock:
         shard_id = await state.get_shard_id()
-        if not shard_id:
+        if shard_id is None:
             raise HTTPException(status_code=401, detail="No Shards Available")
 
         session_id = ulid.new().str
