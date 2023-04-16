@@ -6,6 +6,7 @@ from enum import Enum
 
 import ulid
 from aiohttp import ClientSession
+from beanie.operators import In
 
 from shardman.config import load_config
 from shardman.models import Shard
@@ -74,7 +75,7 @@ class StateManager:
         max_shards = data.get("shards")
         self.total_shards = self._config.max_shards or max_shards
         self.max_concurrency = data.get("session_start_limit").get("max_concurrency")
-        for i in range(max_shards):
+        for i in range(self.total_shards):
             bucket = i % self.max_concurrency
             self.buckets[bucket].append(i)
 
@@ -109,20 +110,20 @@ class StateManager:
             return 0
 
         # Get all shards in the bucket that are already connected
-        bucket_shards = await Shard.find(Shard.shard_id in bucket).to_list()
+        bucket_shards = await Shard.find(In(Shard.shard_id, bucket)).to_list()
 
         # If no shards are connected, sleep default amount + 0.1
         if len(bucket_shards) == 0:
             return (bucket.index(shard_id) * 5.0) + 0.1
 
         # Get shards earlier in the bucket
-        lower_shards = sorted([x for x in bucket_shards if x.shard_id < shard_id])
+        lower_shards = sorted([x for x in bucket_shards if x.shard_id < shard_id], key=lambda x: x.shard_id)
 
         # Get when last shard in bucket connected, and make sure it's in UTC
-        timestamp = ulid.from_str(lower_shards[-1]).timestamp().datetime
+        timestamp = ulid.from_str(lower_shards[-1].session_id).timestamp().datetime
         timestamp.replace(tzinfo=timezone.utc)
 
         now = datetime.now(tz=timezone.utc)
 
         # Get exact sleep amount + 0.1 seconds
-        return max(5 - (now - timestamp).total_seconds, 0) + (5.0 * bucket.index(shard_id)) + 0.1
+        return max(5 - (now - timestamp).total_seconds(), 0) + (5.0 * bucket.index(shard_id)) + 0.1
