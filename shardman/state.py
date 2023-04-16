@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 
+import ulid
 from aiohttp import ClientSession
 
 from shardman.config import load_config
@@ -91,21 +92,37 @@ class StateManager:
 
         return missing_shards[0]
 
-    async def check_bucket(self, shard_id: int) -> int:
+    async def get_sleep_delay(self, shard_id: int) -> float:
         """
-        Get bucket that contains shard ID
+        Get how long a shard needs to sleep to connect
 
         Args:
             shard_id: Shard ID to check
 
         Returns:
-            Sleep multiplier
+            Sleep delay
         """
-        for bucket in self.buckets.values():
-            if shard_id in bucket:
-                # Get all shards in the bucket that are already connected
-                bucket_shards = await Shard.find(Shard.shard_id in bucket).to_list()
-                # Get a count of shards in the bucket that are already connected
-                already_connected = len([x.shard_id for x in bucket_shards if x.shard_id < shard_id])
-                # Return the index - number already connected to get sleep multiplier
-                return bucket.index(shard_id) - already_connected
+        bucket = self.buckets[shard_id % self.max_concurrency]
+
+        # If first shard in bucket, don't sleep
+        if bucket.index(shard_id) == 0:
+            return 0
+
+        # Get all shards in the bucket that are already connected
+        bucket_shards = await Shard.find(Shard.shard_id in bucket).to_list()
+
+        # If no shards are connected, sleep default amount + 0.1
+        if len(bucket_shards) == 0:
+            return (bucket.index(shard_id) * 5.0) + 0.1
+
+        # Get shards earlier in the bucket
+        lower_shards = sorted([x for x in bucket_shards if x.shard_id < shard_id])
+
+        # Get when last shard in bucket connected, and make sure it's in UTC
+        timestamp = ulid.from_str(lower_shards[-1]).timestamp().datetime
+        timestamp.replace(tzinfo=timezone.utc)
+
+        now = datetime.now(tz=timezone.utc)
+
+        # Get exact sleep amount + 0.1 seconds
+        return max(5 - (now - timestamp).total_seconds, 0) + (5.0 * bucket.index(shard_id)) + 0.1
