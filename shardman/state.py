@@ -1,5 +1,6 @@
 import asyncio
 import json
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 
@@ -25,6 +26,7 @@ class StateManager:
             headers={"Authorization": f"Bot {self._token}"},
         )
         self.lock = asyncio.Lock()
+        self.buckets = defaultdict(list)
 
     async def check_sessions(self):
         td = timedelta(seconds=self._config.max_seconds)
@@ -73,8 +75,12 @@ class StateManager:
         resp = await self.__session.get("/api/v10/gateway/bot")
         data = await resp.json()
         resp.raise_for_status()
-        self.total_shards = self._config.max_shards or data.get("shards")
+        max_shards = data.get("shards")
+        self.total_shards = self._config.max_shards or max_shards
         self.max_concurrency = data.get("session_start_limit").get("max_concurrency")
+        for i in range(max_shards):
+            bucket = i % self.max_concurrency
+            self.buckets[bucket].append(i)
 
     async def get_shard_id(self) -> int | None:
         """Get needed shard ID, if any are available"""
@@ -89,3 +95,22 @@ class StateManager:
             return None
 
         return missing_shards[0]
+
+    async def check_bucket(self, shard_id: int) -> int:
+        """
+        Get bucket that contains shard ID
+
+        Args:
+            shard_id: Shard ID to check
+
+        Returns:
+            Sleep multiplier
+        """
+        for bucket in self.buckets.values():
+            if shard_id in bucket:
+                # Get all shards in the bucket that are already connected
+                bucket_shards = await Shard.find(Shard.shard_id in bucket).to_list()
+                # Get a count of shards in the bucket that are already connected
+                already_connected = len([x.shard_id for x in bucket_shards if x.shard_id < shard_id])
+                # Return the index - number already connected to get sleep multiplier
+                return bucket.index(shard_id) - already_connected

@@ -30,9 +30,6 @@ if config.cors_origins:
 
 state: StateManager = StateManager()
 
-next_halt_time: datetime = None
-left_before_halt = 5
-
 
 @api.on_event("startup")
 async def startup():
@@ -65,28 +62,20 @@ async def requires_authorization(
     dependencies=[Depends(requires_authorization)],
 )
 async def connect() -> ConnectConfirmed:
-    global left_before_halt, next_halt_time
-
     if await Shard.count() >= state.total_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
     async with state.lock:
         shard_id = await state.get_shard_id()
+        if not shard_id:
+            raise HTTPException(status_code=401, detail="No Shards Available")
 
         session_id = ulid.new().str
         last_beat = datetime.now(tz=timezone.utc)
 
-        sleep_duration = 0.0
+        sleep_multiplier = await state.check_bucket(shard_id)
 
-        if not next_halt_time or next_halt_time < last_beat:
-            next_halt_time = last_beat + timedelta(seconds=5)
-            left_before_halt = 5
-        if left_before_halt <= 0:
-            left_before_halt = 5
-            sleep_duration = 5.0
-            last_beat = last_beat + timedelta(seconds=5)
-
-        left_before_halt -= 1
+        sleep_duration = 5.1 * sleep_multiplier
 
         shard = Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat)
         await shard.insert()
