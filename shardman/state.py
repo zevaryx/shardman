@@ -67,6 +67,7 @@ class StateManager:
         """Get bot info using bot token."""
         resp = await self.__session.get("/api/v10/gateway/bot")
         data = await resp.json()
+        resp.raise_for_status()
         self.total_shards = self._config.max_shards or data.get("shards")
         self.max_concurrency = data.get("session_start_limit").get("max_concurrency")
 
