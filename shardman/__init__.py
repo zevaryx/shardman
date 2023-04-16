@@ -73,9 +73,7 @@ async def connect() -> ConnectConfirmed:
         session_id = ulid.new().str
         last_beat = datetime.now(tz=timezone.utc)
 
-        sleep_multiplier = await state.check_bucket(shard_id)
-
-        sleep_duration = 5.1 * sleep_multiplier
+        sleep_duration = await state.get_sleep_delay(shard_id)
 
         shard = Shard(shard_id=shard_id, session_id=session_id, last_beat=last_beat)
         await shard.insert()
