@@ -124,13 +124,10 @@ class StateManager:
         # Get shards earlier in the bucket
         lower_shards = sorted([x for x in bucket_shards if x.shard_id < shard_id], key=lambda x: x.shard_id)
 
+        # Get when last shard in bucket connected, and make sure it's in UTC
+        timestamp = ulid.from_str(lower_shards[-1].session_id).timestamp().datetime
+
         now = datetime.now(tz=timezone.utc)
 
-        # Increase sleep time by difference between when the shard was supposed to connect and now
-        sleep_time = 0.1
-        for shard in lower_shards:
-            timestamp = ulid.from_str(shard.session_id).timestamp().datetime
-            sleep_time += max(5 - (now - timestamp).total_seconds(), 0)
-
         # Get exact sleep amount + 0.1 seconds
-        return sleep_time
+        return max(5 - (now - timestamp).total_seconds(), 0) + (5.0 * bucket.index(shard_id)) + 0.1
