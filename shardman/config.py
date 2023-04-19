@@ -1,8 +1,8 @@
 from os import environ
-from typing import Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, validator
 
 __all__ = ["Config", "load_config"]
 
@@ -19,7 +19,7 @@ class Config(BaseModel):
     webhook_content: Optional[str] = None
 
     @validator("max_shards", "cors_origins", "webhook_url", "webhook_content", pre=True)
-    def allow_none(cls, v):
+    def allow_none(cls, v) -> Any | None:
         if v == "":
             return None
         return v

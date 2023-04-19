@@ -23,7 +23,10 @@ class StateManager:
         self._token = self._config.token
         self.total_shards = 1
         self.max_concurrency = 1
-        self.__session = ClientSession(base_url="https://discord.com", headers={"Authorization": f"Bot {self._token}"})
+        self.__session = ClientSession(
+            base_url="https://discord.com",
+            headers={"Authorization": f"Bot {self._token}"},
+        )
         self.lock = asyncio.Lock()
         self.buckets = defaultdict(list)
 
@@ -64,7 +67,9 @@ class StateManager:
         }
         async with ClientSession() as session:
             _resp = await session.post(
-                config.webhook_url, headers={"Content-Type": "application/json"}, data=json.dumps(embed)
+                config.webhook_url,
+                headers={"Content-Type": "application/json"},
+                data=json.dumps(embed),
             )
 
     async def get_bot_info(self) -> None:
@@ -89,7 +94,7 @@ class StateManager:
         missing_shards = sorted(set(range(0, self.total_shards)).difference(shard_ids))
 
         if len(missing_shards) == 0:
-            return
+            return None
 
         return missing_shards[0]
 

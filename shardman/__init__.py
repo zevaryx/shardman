@@ -45,7 +45,7 @@ async def startup():
 
 
 async def requires_authorization(
-    authorization: str = Header(description="Authorization Token"),
+    authorization: str = Header(description="Authorization Token"),  # noqa: B008
 ):
     config = load_config()
     if authorization != config.secret:
@@ -102,7 +102,7 @@ async def beat(heartbeat: Heartbeat) -> None:
     shard = await Shard.find_one(Shard.session_id == heartbeat.session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
-    elif shard.shard_id >= state.total_shards:
+    if shard.shard_id >= state.total_shards:
         raise HTTPException(status_code=401, detail="No Shards Available")
 
     shard.last_beat = datetime.now(tz=timezone.utc)
@@ -121,7 +121,7 @@ async def beat(heartbeat: Heartbeat) -> None:
     },
     dependencies=[Depends(requires_authorization)],
 )
-async def beat(session_id: str) -> None:
+async def disconnect(session_id: str) -> None:
     shard = await Shard.find_one(Shard.session_id == session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
