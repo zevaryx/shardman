@@ -131,4 +131,6 @@ class StateManager:
         now = datetime.now(tz=timezone.utc)
 
         # Get exact sleep amount + 0.1 seconds
-        return max(5 - (now - timestamp).total_seconds(), 0) + (5.0 * bucket.index(shard_id)) + 0.1
+        return (
+            max(5 - (now - timestamp).total_seconds(), 0) + (5.0 * (bucket.index(shard_id) - len(lower_shards))) + 0.1
+        )
