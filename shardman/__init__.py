@@ -150,3 +150,14 @@ async def status(extra: bool = False) -> Status:
     shards = await Shard.find_all().project(ShardProjection).to_list()
 
     return Status(total_shards=state.total_shards, shards=shards)
+
+
+@api.get("/total_guilds", status_code=200, dependencies=[Depends(requires_authorization)])
+async def total_guilds() -> int:
+    shards = await Shard.find_all().project(ShardProjection).to_list()
+    return sum(shard.guild_count for shard in shards)
+
+
+@api.get("/gateway_info", status_code=200, dependencies=[Depends(requires_authorization)])
+async def gateway_info() -> dict:
+    return await state.get_bot_info()
