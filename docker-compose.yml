@@ -1,0 +1,34 @@
+version: '3.1'
+
+services:
+  shardman:
+    container_name: Shardman
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    networks:
+      - backend-network
+
+  mongodb:
+    image: mongo
+    container_name: MongoDB
+    ports:
+      - "27017:27017"
+    networks:
+      - backend-network
+    volumes:
+      - mongo-data:/data/db
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
+    driver: local
