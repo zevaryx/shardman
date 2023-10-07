@@ -61,7 +61,7 @@ headers = {
   'Authorization': 'SECRET',
 }
 
-r = requests.post('/beat', data={
+r = requests.post('/beat', json={
   'session_id': 'string'
 }, headers = headers)
 
