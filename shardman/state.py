@@ -68,13 +68,14 @@ class StateManager:
                 data=json.dumps(embed),
             )
 
-    async def get_bot_info(self) -> None:
+    async def get_bot_info(self) -> dict:
         """Get bot info using bot token."""
         resp = await self.__session.get("/api/v10/gateway/bot")
         data = await resp.json()
         resp.raise_for_status()
         self.total_shards = self._config.max_shards or data.get("shards")
         self.max_concurrency = data.get("session_start_limit").get("max_concurrency")
+        return data
 
     async def get_shard_id(self) -> int | None:
         """Get needed shard ID, if any are available"""
