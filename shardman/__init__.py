@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from shardman.config import load_config
 from shardman.models import Shard, all_models
-from shardman.requests import Heartbeat
+from shardman.requests import Heartbeat, SessionID
 from shardman.responses import ConnectConfirmed, Status, ShardProjection
 from shardman.state import AlertType, StateManager
 
@@ -134,8 +134,8 @@ async def beat(heartbeat: Heartbeat) -> None:
     },
     dependencies=[Depends(requires_authorization)],
 )
-async def disconnect(session_id: str) -> None:
-    shard = await Shard.find_one(Shard.session_id == session_id)
+async def disconnect(resp: SessionID) -> None:
+    shard = await Shard.find_one(Shard.session_id == resp.session_id)
     if not shard:
         raise HTTPException(status_code=404, detail="Session Not Found")
 
