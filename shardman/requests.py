@@ -9,3 +9,8 @@ class Heartbeat(BaseModel):
     latency: float | None = None
 
     extra: Any | None = None
+
+
+class SessionID(BaseModel):
+    session_id: str
+
